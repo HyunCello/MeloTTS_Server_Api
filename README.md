@@ -1,67 +1,181 @@
-<div align="center">
-  <div>&nbsp;</div>
-  <img src="logo.png" width="300"/> 
-</div>
+# **MeloTTS API Server**
 
-## Introduction
-MeloTTS is a **high-quality multi-lingual** text-to-speech library by [MIT](https://www.mit.edu/) and [MyShell.ai](https://myshell.ai). Supported languages include:
+MeloTTS API Server provides an interface to generate high-quality text-to-speech (TTS) audio using the MeloTTS model. The server exposes a RESTful API, allowing users to convert text into speech with support for all base configurations such as speaker voice, speed, and sampling rate.
 
-| Language | Example |
-| --- | --- |
-| English (American)    | [Link](https://myshell-public-repo-host.s3.amazonaws.com/myshellttsbase/examples/en/EN-US/speed_1.0/sent_000.wav) |
-| English (British)     | [Link](https://myshell-public-repo-host.s3.amazonaws.com/myshellttsbase/examples/en/EN-BR/speed_1.0/sent_000.wav) |
-| English (Indian)      | [Link](https://myshell-public-repo-host.s3.amazonaws.com/myshellttsbase/examples/en/EN_INDIA/speed_1.0/sent_000.wav) |
-| English (Australian)  | [Link](https://myshell-public-repo-host.s3.amazonaws.com/myshellttsbase/examples/en/EN-AU/speed_1.0/sent_000.wav) |
-| English (Default)     | [Link](https://myshell-public-repo-host.s3.amazonaws.com/myshellttsbase/examples/en/EN-Default/speed_1.0/sent_000.wav) |
-| Spanish               | [Link](https://myshell-public-repo-host.s3.amazonaws.com/myshellttsbase/examples/es/ES/speed_1.0/sent_000.wav) |
-| French                | [Link](https://myshell-public-repo-host.s3.amazonaws.com/myshellttsbase/examples/fr/FR/speed_1.0/sent_000.wav) |
-| Chinese (mix EN)      | [Link](https://myshell-public-repo-host.s3.amazonaws.com/myshellttsbase/examples/zh/ZH/speed_1.0/sent_008.wav) |
-| Japanese              | [Link](https://myshell-public-repo-host.s3.amazonaws.com/myshellttsbase/examples/jp/JP/speed_1.0/sent_000.wav) |
-| Korean                | [Link](https://myshell-public-repo-host.s3.amazonaws.com/myshellttsbase/examples/kr/KR/speed_1.0/sent_000.wav) |
+---
 
-Some other features include:
-- The Chinese speaker supports `mixed Chinese and English`.
-- Fast enough for `CPU real-time inference`.
+## **Features**
 
-## Usage
-- [Use without Installation](docs/quick_use.md)
-- [Install and Use Locally](docs/install.md)
-- [Training on Custom Dataset](docs/training.md)
+- Streamlined REST API for TTS conversion.
+- Support for multiple speakers and languages.
+- Adjustable parameters for speech speed, noise, and sampling rate.
+- Real-time processing for fast and efficient audio generation.
+- Easy integration with client applications.
 
-The Python API and model cards can be found in [this repo](https://github.com/myshell-ai/MeloTTS/blob/main/docs/install.md#python-api) or on [HuggingFace](https://huggingface.co/myshell-ai).
+---
 
-## Join the Community
+## **Installation**
 
-**Discord**
+### **Requirements**
+- Python 3.9 or higher
+- Required libraries (managed via `requirements.txt`)
+- Dependencies for audio processing:
+  - `libsndfile1` (Linux/Unix)
+  - FFmpeg (if using `pydub` for audio manipulation)
+- Docker (optional, for containerized deployment)
 
-Join our [Discord community](https://discord.gg/myshell) and select the `Developer` role upon joining to gain exclusive access to our developer-only channel! Don't miss out on valuable discussions and collaboration opportunities.
+### **Steps**
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/nyedr/MeloTTS_Server_Api.git
+   cd melotts-api-server
+   ```
 
-**Contributing**
+2. Install required dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-If you find this work useful, please consider contributing to this repo.
+3. Download necessary linguistic resources and pre-trained models:
+   ```bash
+   python -m unidic download
+   python melo/init_downloads.py
+   ```
 
-- Many thanks to [@fakerybakery](https://github.com/fakerybakery) for adding the Web UI and CLI part.
+4. Run the server:
+   ```bash
+   python main.py
+   ```
 
-## Authors
+5. The server will start on `http://127.0.0.1:8000` by default.
 
-- [Wenliang Zhao](https://wl-zhao.github.io) at Tsinghua University
-- [Xumin Yu](https://yuxumin.github.io) at Tsinghua University
-- [Zengyi Qin](https://www.qinzy.tech) at MIT and MyShell
+---
 
-**Citation**
+## **Usage**
+
+### **Endpoints**
+
+#### 1. `/tts/generate` (POST)
+
+Generates a speech audio file from the given text.
+
+- **URL**: `http://127.0.0.1:8000/tts/generate`
+- **Method**: `POST`
+- **Headers**: `Content-Type: application/json`
+- **Request Body**:
+  ```json
+  {
+    "text": "Your text to convert to speech.",
+    "voice_id": "EN-US",  // Available speaker ID
+    "sr": 22050,          // Sampling rate (default: 22050)
+    "speed": 1.0          // Speech speed (default: 1.0)
+  }
+  ```
+- **Response**: Streams the audio file in WAV format.
+
+#### 2. `/speakers` (GET)
+
+Fetches the list of available speaker IDs.
+
+- **URL**: `http://127.0.0.1:8000/speakers`
+- **Method**: `GET`
+- **Response**:
+  ```json
+  {
+    "available_speakers": ["EN-US", "EN-BR", "EN-AU", "EN-INDIA", "EN-Default"]
+  }
+  ```
+
+---
+
+## **Examples**
+
+### **Generating Speech**
+#### **Using `curl`**
+```bash
+curl -X POST "http://127.0.0.1:8000/tts/generate" \
+    -H "Content-Type: application/json" \
+    -d '{
+          "text": "Hello, this is a test of the MeloTTS API.",
+          "voice_id": "EN-US",
+          "sr": 22050,
+          "speed": 1.0
+        }' --output output.wav
 ```
-@software{zhao2024melo,
-  author={Zhao, Wenliang and Yu, Xumin and Qin, Zengyi},
-  title = {MeloTTS: High-quality Multi-lingual Multi-accent Text-to-Speech},
-  url = {https://github.com/myshell-ai/MeloTTS},
-  year = {2023}
+
+#### **Using Python**
+```python
+import requests
+
+url = "http://127.0.0.1:8000/tts/generate"
+data = {
+    "text": "Hello, this is a test of the MeloTTS API.",
+    "voice_id": "EN-US",
+    "sr": 22050,
+    "speed": 1.0
 }
+response = requests.post(url, json=data, stream=True)
+
+with open("output.wav", "wb") as f:
+    for chunk in response.iter_content(chunk_size=1024):
+        if chunk:
+            f.write(chunk)
 ```
 
-## License
+---
 
-This library is under MIT License, which means it is free for both commercial and non-commercial use.
+## **Docker Deployment**
 
-## Acknowledgements
+### **Building the Image**
+```bash
+docker build -t melotts-api-server .
+```
 
-This implementation is based on [TTS](https://github.com/coqui-ai/TTS), [VITS](https://github.com/jaywalnut310/vits), [VITS2](https://github.com/daniilrobnikov/vits2) and [Bert-VITS2](https://github.com/fishaudio/Bert-VITS2). We appreciate their awesome work.
+### **Running the Container**
+```bash
+docker run -p 8000:8000 melotts-api-server
+```
+
+---
+
+## **Configuration**
+
+### **Environment Variables**
+You can configure the server behavior using the following environment variables:
+
+| Variable          | Default Value  | Description                         |
+|--------------------|----------------|-------------------------------------|
+| `HOST`            | `0.0.0.0`      | Server host address.                |
+| `PORT`            | `8000`         | Server port.                        |
+| `DEFAULT_SPEED`   | `1.0`          | Default speech speed.               |
+| `DEFAULT_LANGUAGE`| `EN`           | Default language for the TTS model. |
+| `DEFAULT_SPEAKER_ID` | `EN-US`      | Default speaker voice ID.           |
+
+---
+
+## **Contributing**
+
+Contributions are welcome! Please fork the repository and submit a pull request with your changes.
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/nyedr/MeloTTS_Server_Api.git
+   ```
+
+2. Create a feature branch:
+   ```bash
+   git checkout -b feature-name
+   ```
+
+3. Commit your changes and push:
+   ```bash
+   git add .
+   git commit -m "Add new feature"
+   git push origin feature-name
+   ```
+
+4. Open a pull request on GitHub.
+
+---
+
+Fork of [MeloTTS](https://github.com/myshell-ai/MeloTTS)
