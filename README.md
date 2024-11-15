@@ -66,9 +66,9 @@ Generates a speech audio file from the given text.
   ```json
   {
     "text": "Your text to convert to speech.",
-    "voice_id": "EN-US",  // Available speaker ID
-    "sr": 22050,          // Sampling rate (default: 22050)
-    "speed": 1.0          // Speech speed (default: 1.0)
+    "voice_id": "EN-US",  
+    "sr": 22050,          
+    "speed": 1.0          
   }
   ```
 - **Response**: Streams the audio file in WAV format.
