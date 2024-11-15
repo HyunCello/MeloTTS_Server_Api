@@ -10,7 +10,7 @@ from typing import Tuple
 load_dotenv()
 DEFAULT_SPEED = float(os.getenv("DEFAULT_SPEED", 1.0))
 DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "EN")
-DEFAULT_SPEAKER_ID = os.getenv("DEFAULT_SPEAKER_ID", "default")
+DEFAULT_SPEAKER_ID = os.getenv("DEFAULT_SPEAKER_ID", "EN-US")
 DEVICE = "auto"  # Automatically use GPU if available
 
 
