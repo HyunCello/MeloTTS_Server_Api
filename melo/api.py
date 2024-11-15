@@ -16,6 +16,10 @@ from .models import SynthesizerTrn
 from .split_utils import split_sentence
 from .mel_processing import spectrogram_torch, spectrogram_torch_conv
 from .download_utils import load_or_download_config, load_or_download_model
+import nltk
+
+# Download the missing resource
+nltk.download('averaged_perceptron_tagger_eng')
 
 class TTS(nn.Module):
     def __init__(self, 

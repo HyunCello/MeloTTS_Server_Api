@@ -11,7 +11,7 @@ punctuation = ["!", "?", "…", ",", ".", "'", "-"]
 try:
     import MeCab
 except ImportError as e:
-    raise ImportError("Japanese requires mecab-python3 and unidic-lite.") from e
+    print("Japanese requires mecab-python3 and unidic-lite.")
 from num2words import num2words
 
 _CONVRULES = [
@@ -364,11 +364,11 @@ def hira2kata(text: str) -> str:
 
 _SYMBOL_TOKENS = set(list("・、。？！"))
 _NO_YOMI_TOKENS = set(list("「」『』―（）［］[]"))
-_TAGGER = MeCab.Tagger()
+# _TAGGER = MeCab.Tagger()
 
 
 def text2kata(text: str) -> str:
-    parsed = _TAGGER.parse(text)
+    parsed = ""
     res = []
     for line in parsed.split("\n"):
         if line == "EOS":

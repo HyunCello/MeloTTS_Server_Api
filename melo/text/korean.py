@@ -140,7 +140,7 @@ def g2p(norm_text):
 
 def get_bert_feature(text, word2ph, device='cuda'):
     from . import japanese_bert
-    return japanese_bert.get_bert_feature(text, word2ph, device=device, model_id=model_id)
+    # return japanese_bert.get_bert_feature(text, word2ph, device=device, model_id=model_id)
 
 
 if __name__ == "__main__":

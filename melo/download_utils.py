@@ -35,7 +35,7 @@ LANG_TO_HF_REPO_ID = {
     'EN_V2': 'myshell-ai/MeloTTS-English-v2',
     'EN_NEWEST': 'myshell-ai/MeloTTS-English-v3',
     'FR': 'myshell-ai/MeloTTS-French',
-    'JP': 'myshell-ai/MeloTTS-Japanese',
+    # 'JP': 'myshell-ai/MeloTTS-Japanese',
     'ES': 'myshell-ai/MeloTTS-Spanish',
     'ZH': 'myshell-ai/MeloTTS-Chinese',
     'KR': 'myshell-ai/MeloTTS-Korean',

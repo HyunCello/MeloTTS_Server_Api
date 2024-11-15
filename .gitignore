@@ -9,3 +9,5 @@ build/
 
 *.zip
 *.wav
+.env
+melo_tts_api/.env
