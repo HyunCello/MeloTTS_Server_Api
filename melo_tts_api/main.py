@@ -14,7 +14,7 @@ import time
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
-from tts_manager import tts_model
+from tts_manager import tts_model, TTSModel
 from models import TTSRequest
 from utils import cache_synthesize, get_resampler, audio_to_bytes
 
@@ -22,8 +22,9 @@ from utils import cache_synthesize, get_resampler, audio_to_bytes
 load_dotenv()
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", 8000))
-WORKERS = int(os.getenv("WORKERS", 4))
+WORKERS = int(os.getenv("WORKERS", 1))  # Reduce default workers to 1 to prevent memory issues
 MAX_CACHE_SIZE = int(os.getenv("MAX_CACHE_SIZE", 2048))
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Initialize FastAPI app
 app = FastAPI(title="MeloTTS API", description="API Server for MeloTTS Model", version="1.0")
@@ -34,6 +35,36 @@ executor = ThreadPoolExecutor(max_workers=WORKERS)
 @app.get("/speakers")
 async def get_speaker_ids():
     return {"available_speakers": list(tts_model.speaker_ids.keys())}
+
+@app.post("/language/switch")
+async def switch_language(language_request: dict):
+    """Switch the TTS model to a different language.
+    
+    Args:
+        language_request (dict): Request with language field
+        
+    Returns:
+        dict: Status message and available speakers for the new language
+    """
+    # Extract language from request
+    if not isinstance(language_request, dict) or "language" not in language_request:
+        language = language_request  # Try to use the raw input if it's a string
+    else:
+        language = language_request["language"]
+    
+    # Validate language
+    valid_languages = ["EN", "ES", "FR", "ZH", "JP", "KR"]
+    if language not in valid_languages:
+        raise HTTPException(status_code=400, detail=f"Invalid language. Must be one of {valid_languages}")
+    
+    # Initialize new TTS model with the selected language
+    global tts_model
+    tts_model = TTSModel(language=language, device=DEVICE)
+    
+    return {
+        "status": f"Switched to {language} language model",
+        "available_speakers": list(tts_model.speaker_ids.keys())
+    }
 
 @app.post("/tts/generate", response_description="Generate and stream TTS audio")
 async def generate_tts_audio(request: TTSRequest):
@@ -105,5 +136,8 @@ if __name__ == "__main__":
         port=PORT,
         workers=WORKERS,
         reload=False,  # Disable reload for production
-        timeout_keep_alive=300
+        timeout_keep_alive=300,
+        log_level="info",
+        limit_concurrency=5,  # Limit concurrent requests
+        timeout_graceful_shutdown=30  # Give more time for graceful shutdown
     )

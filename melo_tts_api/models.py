@@ -5,6 +5,7 @@ class TTSRequest(BaseModel):
     """Model for incoming TTS generation requests."""
     text: str
     voice_id: str
+    language: Optional[str] = None  # Optional language parameter (EN, ES, FR, ZH, JP, KR)
     sr: int = 22050  # Default sample rate, customizable
     sdp_ratio: Optional[float] = 0.2
     noise_scale: Optional[float] = 0.6
