@@ -13,6 +13,19 @@ DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "KR")
 DEFAULT_SPEAKER_ID = os.getenv("DEFAULT_SPEAKER_ID", "KR")
 DEVICE = "auto"  # Automatically use GPU if available
 
+# Check and display GPU usage information
+import torch
+if torch.cuda.is_available():
+    gpu_name = torch.cuda.get_device_name(0)
+    gpu_memory_allocated = torch.cuda.memory_allocated(0) / (1024 ** 3)  # Convert to GB
+    gpu_memory_reserved = torch.cuda.memory_reserved(0) / (1024 ** 3)  # Convert to GB
+    print(f"\n[GPU INFO] Using GPU: {gpu_name}")
+    print(f"[GPU INFO] Memory Allocated: {gpu_memory_allocated:.2f} GB")
+    print(f"[GPU INFO] Memory Reserved: {gpu_memory_reserved:.2f} GB")
+    print(f"[GPU INFO] Device: {DEVICE}\n")
+else:
+    print("\n[GPU INFO] No GPU available, using CPU for inference\n")
+
 # Available languages:
 # - EN: English
 # - ES: Spanish
@@ -64,7 +77,23 @@ class TTSModel:
         # Load the new model
         from melo.api import TTS
         print(f"Loading {language} language model...")
+        
+        # Check device being used
+        import torch
+        actual_device = "cuda" if torch.cuda.is_available() else "cpu"
+        print(f"[MODEL INFO] Using device: {actual_device} for {language} model")
+        if actual_device == "cuda":
+            memory_before = torch.cuda.memory_allocated(0) / (1024 ** 3)
+            print(f"[MODEL INFO] GPU Memory before loading: {memory_before:.2f} GB")
+        
         model = TTS(language=language, device=self.device)
+        
+        # Check GPU memory after loading
+        if actual_device == "cuda":
+            memory_after = torch.cuda.memory_allocated(0) / (1024 ** 3)
+            memory_increase = memory_after - memory_before
+            print(f"[MODEL INFO] GPU Memory after loading: {memory_after:.2f} GB")
+            print(f"[MODEL INFO] GPU Memory increase: {memory_increase:.2f} GB")
         
         # Store the model
         self.__class__._models[language] = model
@@ -110,6 +139,32 @@ class TTSModel:
 
         # Return audio as a 1D or 2D numpy array and the actual sample rate
         return audio_np, sample_rate
+        
+    def close(self):
+        """Clean up resources and free memory when shutting down."""
+        try:
+            # Remove references to all models
+            for lang, model in self.__class__._models.items():
+                print(f"Cleaning up {lang} language model...")
+                del model
+            
+            # Clear the models dictionary
+            self.__class__._models.clear()
+            
+            # Force garbage collection
+            import gc
+            import torch
+            gc.collect()
+            
+            # Clear CUDA cache if available
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                torch.cuda.synchronize()  # Ensure all CUDA operations are completed
+                print("CUDA memory cache cleared")
+                
+            print("All TTS models have been unloaded and memory has been freed")
+        except Exception as e:
+            print(f"Error during cleanup: {e}")
 
 
 # Initialize the TTS model

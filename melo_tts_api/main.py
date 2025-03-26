@@ -25,12 +25,74 @@ PORT = int(os.getenv("PORT", 8000))
 WORKERS = int(os.getenv("WORKERS", 1))  # Reduce default workers to 1 to prevent memory issues
 MAX_CACHE_SIZE = int(os.getenv("MAX_CACHE_SIZE", 2048))
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "KR")
 
 # Initialize FastAPI app
-app = FastAPI(title="MeloTTS API", description="API Server for MeloTTS Model", version="1.0")
+app = FastAPI(
+    title="MeloTTS API",
+    description="API for text-to-speech synthesis using MeloTTS",
+    version="1.0.0",
+)
 
-# Initialize a ThreadPoolExecutor for handling blocking operations asynchronously
+# Initialize ThreadPoolExecutor for async operations
 executor = ThreadPoolExecutor(max_workers=WORKERS)
+
+# Startup event to preload the model and check GPU usage
+@app.on_event("startup")
+def startup_event():
+    """Handle startup events to preload models and check GPU usage."""
+    print("\nStarting MeloTTS API server...")
+    print(f"Default language: {DEFAULT_LANGUAGE}")
+    
+    # Check GPU status
+    import torch
+    if torch.cuda.is_available():
+        gpu_name = torch.cuda.get_device_name(0)
+        print(f"\n[STARTUP] Using GPU: {gpu_name}")
+        print(f"[STARTUP] CUDA Version: {torch.version.cuda}")
+        print(f"[STARTUP] PyTorch CUDA: {torch.cuda.is_available()}")
+        
+        # Get initial memory usage
+        init_memory = torch.cuda.memory_allocated(0) / (1024 ** 3)  # Convert to GB
+        print(f"[STARTUP] Initial GPU Memory: {init_memory:.2f} GB")
+    else:
+        print("\n[STARTUP] No GPU available, using CPU for inference")
+    
+    # Preload the model to ensure it's ready before the first request
+    print("\n[STARTUP] Preloading TTS model...")
+    try:
+        # Force model loading by accessing the model and performing a small synthesis
+        # This ensures the model is fully loaded and ready for use
+        speakers = tts_model.speaker_ids
+        print(f"[STARTUP] Model initialized with {len(speakers)} speakers")
+        
+        # Perform a small synthesis to ensure the model is fully loaded
+        print("[STARTUP] Performing test synthesis to ensure model is fully loaded...")
+        test_text = "안녕하세요"  # Simple Korean greeting
+        test_speaker = list(speakers.keys())[0]  # Get the first available speaker
+        
+        # Synthesize a short text to ensure the model is fully loaded
+        _ = tts_model.synthesize(
+            text=test_text,
+            voice_id=test_speaker,
+            sdp_ratio=0.2,
+            noise_scale=0.6,
+            noise_scale_w=0.8,
+            speed=1.0
+        )
+        
+        print(f"[STARTUP] Model fully preloaded and ready for use with {len(speakers)} speakers")
+        
+        # Check memory usage after model loading
+        if torch.cuda.is_available():
+            post_memory = torch.cuda.memory_allocated(0) / (1024 ** 3)  # Convert to GB
+            memory_increase = post_memory - init_memory
+            print(f"[STARTUP] GPU Memory after model loading: {post_memory:.2f} GB")
+            print(f"[STARTUP] GPU Memory increase: {memory_increase:.2f} GB\n")
+    except Exception as e:
+        print(f"[STARTUP] Error preloading model: {e}\n")
+        import traceback
+        traceback.print_exc()
 
 @app.get("/speakers")
 async def get_speaker_ids():
@@ -125,8 +187,31 @@ async def generate_tts_audio(request: TTSRequest):
 @app.on_event("shutdown")
 def shutdown_event():
     """Handle shutdown events to clean up resources."""
-    tts_model.close()
-    executor.shutdown()
+    print("\nShutting down server and cleaning up resources...")
+    try:
+        # Try to close the TTS model if the close method exists
+        if hasattr(tts_model, 'close'):
+            tts_model.close()  # Clean up TTS model resources
+        else:
+            print("Warning: tts_model does not have a close method. Using manual cleanup.")
+            # Manual cleanup as fallback
+            import gc
+            import torch
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                print("CUDA memory cache cleared manually")
+    except Exception as e:
+        print(f"Error during TTS model cleanup: {e}")
+    
+    # Always shut down the executor
+    try:
+        executor.shutdown()
+        print("Executor shutdown complete")
+    except Exception as e:
+        print(f"Error during executor shutdown: {e}")
+        
+    print("Server shutdown complete\n")
 
 if __name__ == "__main__":
     # Run the Uvicorn server with optimized settings
