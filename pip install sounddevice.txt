@@ -1,0 +1,37 @@
+pip install sounddevice soundfile
+pip install sounddevice soundfile
+sudo apt install portaudio19-dev
+
+
+sudo apt install fonts-nanum fonts-noto-cjk
+sudo apt install ibus-hangul 
+
+ibus-setup
+
+pip install streamlit
+
+# orin에서
+alias gd_tts='cd ~/from_pc/MeloTTS_Server_Api/ && python3 melo_tts_api/main.py'
+cd ~/from_pc/MeloTTS_Server_Api/ && python3 melo_tts_api/main.py
+
+alias gd_mic_client='cd ~/from_pc/MeloTTS_Server_Api/ && python3 mic/mic_client.py'
+cd ~/from_pc/MeloTTS_Server_Api/ && python3 mic/mic_client.py
+
+# gene에서
+alias gd_web='cd ~/from_pc/MeloTTS_Server_Api/ && ~/.local/bin/streamlit run kr_tts_web.py'
+cd ~/from_pc/MeloTTS_Server_Api/ && ~/.local/bin/streamlit run kr_tts_web.py
+
+# 연결하는 PC에서
+git clone https://github.com/HyunCello/MeloTTS_Server_Api
+cd MeloTTS_Server_Api
+python3 mic/mic_server.py
+
+
+alias gd_mic_server='cd ~/from_pc/MeloTTS_Server_Api/ && python3 mic/mic_server.py'
+
+gd_tts
+gd_mic_client
+
+gd_tts_web
+
+gd_mic_server

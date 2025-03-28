@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 import sys
 import os
 import io
 import time
 import requests
+import shutil
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QLabel, QPushButton, QTextEdit, 
                              QComboBox, QSlider, QFileDialog, QMessageBox, QProgressBar)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QEvent
-from PyQt5.QtGui import QFont, QIcon, QKeyEvent
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QEvent, QLocale
+from PyQt5.QtGui import QFont, QIcon, QKeyEvent, QTextCursor
 
 # 오디오 재생을 위한 라이브러리
 try:
@@ -20,7 +22,7 @@ except ImportError:
     CAN_PLAY_AUDIO = False
 
 # API 서버 URL
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://192.168.10.4:8000"
 
 # 저장 디렉토리 생성
 OUTPUT_DIR = "tts_output"
@@ -81,6 +83,8 @@ class TTSWorker(QThread):
 class KoreanTTSApp(QMainWindow):
     def __init__(self):
         super().__init__()
+        # 언어 및 국가 코드를 한국어 및 한국으로 설정
+        QLocale.setDefault(QLocale(QLocale.Korean, QLocale.SouthKorea))
         self.initUI()
         self.speakers = []
         self.current_audio = None
@@ -108,6 +112,26 @@ class KoreanTTSApp(QMainWindow):
         text_label = QLabel('텍스트 입력:')
         self.text_edit = QTextEdit()
         self.text_edit.setPlaceholderText('여기에 한국어 텍스트를 입력하세요...')
+        
+        # 한글 입력을 위한 설정
+        self.text_edit.setAttribute(Qt.WA_InputMethodEnabled, True)
+        self.text_edit.setAcceptRichText(False)  # 보안 취약점을 위한 설정
+        
+        # 한글 폰트 설정
+        available_fonts = ['Noto Sans CJK KR', 'Malgun Gothic', 'Gulim', 'Batang', 'Dotum']
+        font_set = False
+        
+        for font_name in available_fonts:
+            font = QFont(font_name, 10)
+            if font.exactMatch():
+                self.text_edit.setFont(font)
+                font_set = True
+                break
+        
+        if not font_set:
+            # 기본 폰트 설정
+            self.text_edit.setFont(QFont('Sans', 10))
+        
         # 엔터 키 이벤트 처리를 위한 이벤트 필터 설정
         self.text_edit.installEventFilter(self)
         main_layout.addWidget(text_label)
@@ -268,24 +292,117 @@ class KoreanTTSApp(QMainWindow):
             
             if file_path:
                 # 원본 파일을 새 위치로 복사
-                import shutil
                 shutil.copy2(self.worker.filename, file_path)
                 self.status_label.setText(f"파일이 저장되었습니다: {file_path}")
     
     def eventFilter(self, obj, event):
-        """QTextEdit에서 엔터 키 이벤트를 처리하는 필터"""
-        if obj is self.text_edit and event.type() == QEvent.KeyPress:
-            key_event = QKeyEvent(event)
-            # Ctrl+Enter 또는 Shift+Enter는 줄바꿈으로 처리
-            if key_event.key() == Qt.Key_Return and not (key_event.modifiers() & (Qt.ControlModifier | Qt.ShiftModifier)):
-                self.generate_tts()
-                return True
-        
+        if obj == self.text_edit:
+            if event.type() == QEvent.KeyPress:
+                if event.key() == Qt.Key_Return and event.modifiers() == Qt.ControlModifier:
+                    self.generate_tts()
+                    return True
+            elif event.type() == QEvent.InputMethod:
+                # 한글 입력을 위한 설정
+                # 한글 입력 이벤트 처리
+                return False  # 이벤트를 상위로 전달
         return super().eventFilter(obj, event)
+
+    def keyPressEvent(self, event):
+        # 한글 입력을 위한 설정
+        super().keyPressEvent(event)
+        # 한글 입력을 위한 설정
+        if QApplication.inputMethod():
+            QApplication.inputMethod().update(Qt.ImEnabled)
+
+    def focusInEvent(self, event):
+        # 한글 입력을 위한 설정
+        super().focusInEvent(event)
+        # 한글 입력을 위한 설정
+        if QApplication.inputMethod():
+            QApplication.inputMethod().update(Qt.ImEnabled)
+            QApplication.inputMethod().reset()
+
+    def showEvent(self, event):
+        # 한글 입력을 위한 설정
+        super().showEvent(event)
+        # 한글 입력을 위한 설정
+        if QApplication.inputMethod():
+            QApplication.inputMethod().update(Qt.ImEnabled)
+            QApplication.inputMethod().reset()
+
+
+def setup_korean_input():
+    """한글 입력을 위한 입력기 설정 파일 복사
+    시스템의 입력기 모듈(IM Module)을 PyQt5 플러그인 디렉토리로 복사합니다.
+    """
+    try:
+        # 시스템의 입력기 모듈 디렉토리
+        system_im_dir = "/usr/lib/x86_64-linux-gnu/qt5/plugins/platforminputcontexts/"
+        
+        # PyQt5 플러그인 디렉토리 경로 찾기
+        import site
+        pyqt_plugin_dirs = [
+            # 시스템 설치
+            os.path.join(site.getsitepackages()[0], "PyQt5", "Qt5", "plugins", "platforminputcontexts"),
+            # 사용자 설치
+            os.path.join(os.path.expanduser("~"), ".local", "lib", "python3.8", "site-packages", "PyQt5", "Qt5", "plugins", "platforminputcontexts"),
+            # 아나콘다 환경
+            os.path.join(os.path.dirname(sys.executable), "Lib", "site-packages", "PyQt5", "Qt5", "plugins", "platforminputcontexts")
+        ]
+        
+        # 입력기 모듈 파일 목록
+        im_modules = [
+            "libqt5im-nimf.so",    # nimf
+            "libkime-qt-5.11.3.so", # kime
+            "libqt5im-tian.so",    # tian
+            "libfcitxplatforminputcontextplugin.so", # fcitx
+            "libibusplatforminputcontextplugin.so"   # ibus
+        ]
+        
+        if os.path.exists(system_im_dir):
+            # 시스템 디렉토리에서 입력기 모듈 파일 찾기
+            found_modules = [f for f in im_modules if os.path.exists(os.path.join(system_im_dir, f))]
+            
+            # 각 PyQt5 플러그인 디렉토리에 복사 시도
+            for pyqt_dir in pyqt_plugin_dirs:
+                if not os.path.exists(pyqt_dir):
+                    os.makedirs(pyqt_dir, exist_ok=True)
+                
+                for module in found_modules:
+                    src = os.path.join(system_im_dir, module)
+                    dst = os.path.join(pyqt_dir, module)
+                    
+                    if not os.path.exists(dst):
+                        shutil.copy2(src, dst)
+                        # 실행 권한 추가
+                        os.chmod(dst, 0o755)
+                        print(f"한글 입력기 모듈 복사 완료: {dst}")
+        
+        return True
+    except Exception as e:
+        print(f"한글 입력기 설정 오류: {e}")
+        return False
 
 
 def main():
+    # 한글 입력을 위한 환경 변수 설정
+    os.environ['LANG'] = 'ko_KR.UTF-8'
+    os.environ['LC_ALL'] = 'ko_KR.UTF-8'
+    os.environ['QT_IM_MODULE'] = 'xim'  # Linux에서 한글 입력을 위한 설정
+    
+    # 한글 입력기 설정
+    setup_korean_input()
+    
     app = QApplication(sys.argv)
+    
+    # 한글 입력을 위한 추가 설정
+    app.setLayoutDirection(Qt.LeftToRight)
+    QLocale.setDefault(QLocale(QLocale.Korean, QLocale.SouthKorea))
+    
+    # 폰트 설정
+    font = QFont('Noto Sans CJK KR', 10)
+    app.setFont(font)
+    
     window = KoreanTTSApp()
     window.show()
     sys.exit(app.exec_())
