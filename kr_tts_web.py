@@ -25,6 +25,22 @@ BASE_URL = "http://192.168.10.4:8000"
 OUTPUT_DIR = "tts_output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+# 오디오 장치 목록 가져오기 함수
+def get_audio_devices():
+    if not CAN_PROCESS_AUDIO:
+        return []
+    try:
+        devices = sd.query_devices()
+        output_devices = []
+        for i, device in enumerate(devices):
+            # 출력 채널이 있는 장치만 선택
+            if device['max_output_channels'] > 0:
+                name = f"{i}: {device['name']}"
+                output_devices.append((i, name))
+        return output_devices
+    except Exception as e:
+        st.warning(f"오디오 장치 목록을 가져오는 중 오류 발생: {e}")
+        return []
 
 # 페이지 설정
 st.set_page_config(
@@ -99,7 +115,9 @@ def play_audio_on_server(audio_data):
     try:
         with io.BytesIO(audio_data) as audio_io:
             data, samplerate = sf.read(audio_io)
-            sd.play(data, samplerate)
+            # 선택된 오디오 장치로 재생
+            device_idx = st.session_state.get('selected_audio_device', None)
+            sd.play(data, samplerate, device=device_idx)
             # 재생 완료 대기
             sd.wait()
         return True
@@ -166,6 +184,54 @@ with st.sidebar:
     # 서버측 재생 옵션
     st.session_state.server_side_playback = st.checkbox("서버측 오디오 재생", value=st.session_state.server_side_playback, 
                                                       help="체크하면 웹브라우저가 아닌 서버에서 오디오가 재생됩니다.")
+    
+    # 서버측 재생이 활성화된 경우 오디오 장치 선택 옵션 표시
+    if st.session_state.server_side_playback and CAN_PROCESS_AUDIO:
+        st.subheader("오디오 장치 설정")
+        # 오디오 장치 목록 가져오기
+        audio_devices = get_audio_devices()
+        
+        if audio_devices:
+            # 장치 ID와 이름을 분리하여 selectbox에 표시
+            device_names = [name for _, name in audio_devices]
+            device_indices = [idx for idx, _ in audio_devices]
+            
+            # 기본 장치 인덱스 (세션 상태에 저장된 값 또는 기본값)
+            default_device_idx = 0
+            if 'selected_audio_device' in st.session_state:
+                try:
+                    default_device_idx = device_indices.index(st.session_state.selected_audio_device)
+                except ValueError:
+                    default_device_idx = 0
+            
+            # 장치 선택 드롭다운
+            selected_device_name = st.selectbox(
+                "오디오 출력 장치:", 
+                device_names,
+                index=default_device_idx,
+                help="오디오를 재생할 출력 장치를 선택하세요."
+            )
+            
+            # 선택된 장치의 인덱스를 세션 상태에 저장
+            selected_idx = device_indices[device_names.index(selected_device_name)]
+            st.session_state.selected_audio_device = selected_idx
+            
+            # 현재 선택된 장치 정보 표시
+            st.info(f"선택된 장치: {selected_device_name}")
+            
+            # 테스트 재생 버튼
+            if st.button("테스트 소리 재생"):
+                try:
+                    # 간단한 테스트 소리 생성 (1초 길이의 440Hz 사인파)
+                    sample_rate = 44100
+                    t = np.linspace(0, 1, sample_rate, False)
+                    test_tone = 0.3 * np.sin(2 * np.pi * 440 * t)  # 440Hz 사인파, 볼륨 0.3
+                    sd.play(test_tone, sample_rate, device=selected_idx)
+                    st.success("테스트 소리를 재생 중입니다...")
+                except Exception as e:
+                    st.error(f"테스트 소리 재생 중 오류 발생: {e}")
+        else:
+            st.warning("사용 가능한 오디오 출력 장치가 없습니다.")
     
     # 서버측 재생이 활성화된 경우 라이브러리 설치 여부 확인
     if st.session_state.server_side_playback and not CAN_PROCESS_AUDIO:
